@@ -1,8 +1,8 @@
-import Task from "./view/task/task.jsx";
+import Task from './view/task/task.jsx';
 
 function App() {
   return (
-    <div className="App">
+    <div className='App'>
       <Task></Task>
     </div>
   );
