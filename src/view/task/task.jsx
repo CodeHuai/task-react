@@ -1,21 +1,11 @@
 import React from 'react';
-import {
-  Button,
-  Tag,
-  Table,
-  Popconfirm,
-  Modal,
-  Input,
-  Form,
-  DatePicker,
-} from 'antd';
+import { Button, Tag, Table, Popconfirm, Modal, Form, DatePicker } from 'antd';
 import './task.less';
 import moment from 'moment';
+import { formatTime } from '../../plugin/index';
+import TextArea from 'antd/es/input/TextArea';
 
-const { TextArea } = Input;
-const formatTime = (time) => {
-  return time ? moment(time).format('MM-DD HH:mm') : '';
-};
+const dayjs = require('dayjs');
 
 class Task extends React.Component {
   columns = [
@@ -73,27 +63,46 @@ class Task extends React.Component {
       },
     },
   ];
-  data = [];
-  tableLoading = false;
-  // modal 相关属性设置
-  title = '新增任务窗体';
-  isModalOpen = false;
+
+  // 设置初始的一些状态
+  state = {
+    data: [],
+    tableLoading: false,
+    title: '新增任务窗体',
+    isModalOpen: false, // modal控制显隐的变量
+    ruleForm: {
+      task: null,
+      time: null,
+    },
+  };
 
   handleRemove() {}
 
   handleUpdate() {}
 
-  add() {}
+  //   打开弹框
+  add = () => {
+    this.setState({
+      isModalOpen: true,
+    });
+  };
 
-  handleOk() {
-    this.isModalOpen = false;
-  }
+  // 关闭弹框
+  closeModal = () => {
+    this.setState({
+      isModalOpen: false,
+    });
+  };
 
-  handleCancel() {
-    this.isModalOpen = false;
-  }
+  // 点击弹框时候确定按钮的时候
+  submit = () => {
+    this.setState({
+      isModalOpen: false,
+    });
+  };
 
   render() {
+    let { title, data, isModalOpen, tableLoading } = this.state;
     return (
       <div className='wrapper'>
         <div className='header'>
@@ -114,17 +123,17 @@ class Task extends React.Component {
 
           <Table
             columns={this.columns}
-            dataSource={this.data}
-            loading={this.tableLoading}
+            dataSource={data}
+            loading={tableLoading}
             pagination={false}
             rowKey='id'
           />
 
           <Modal
-            title='新增任务'
-            open={this.isModalOpen}
-            onOk={this.handleOk.bind(this)}
-            onCancel={this.handleCancel.bind(this)}>
+            title={title}
+            open={isModalOpen}
+            onOk={this.submit}
+            onCancel={this.closeModal}>
             <Form layout='vertical' initialValues={{ task: '', time: '' }}>
               <Form.Item
                 label='任务描述'
@@ -135,7 +144,20 @@ class Task extends React.Component {
                     message: '请输入任务描述',
                   },
                 ]}>
-                <TextArea row={4} placeholder='任务描述'></TextArea>
+                <TextArea
+                  row={4}
+                  placeholder='任务描述'
+                  value={this.state.ruleForm.task}
+                  onChange={(ev) => {
+                    const value = ev.target.value.trim();
+
+                    this.setState({
+                      ruleForm: {
+                        ...this.state.ruleForm,
+                        task: value,
+                      },
+                    });
+                  }}></TextArea>
               </Form.Item>
 
               <Form.Item
@@ -143,7 +165,19 @@ class Task extends React.Component {
                 name='time'
                 validateTrigger='onBlur'
                 rules={[{ required: true, message: '预期完成时间是必填项' }]}>
-                <DatePicker showTime />
+                <DatePicker
+                  showTime
+                  value={this.state.ruleForm.time}
+                  onOk={(ev) => {
+                    console.log(ev);
+                    this.setState({
+                      ruleForm: {
+                        ...this.state,
+                        time: ev,
+                      },
+                    });
+                  }}
+                />
               </Form.Item>
             </Form>
           </Modal>
