@@ -1,11 +1,10 @@
 import React from 'react';
-import { Button, Tag, Table, Popconfirm, Modal, Form, DatePicker } from 'antd';
+import { Button, DatePicker, Form, Modal, Popconfirm, Table, Tag } from 'antd';
 import './task.less';
-import moment from 'moment';
 import { formatTime } from '../../plugin/index';
 import TextArea from 'antd/es/input/TextArea';
 
-const dayjs = require('dayjs');
+// const dayjs = require('dayjs');
 
 class Task extends React.Component {
   columns = [
