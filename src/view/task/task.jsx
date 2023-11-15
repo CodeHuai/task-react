@@ -1,8 +1,23 @@
 import React from 'react';
-import { Button, DatePicker, Form, Modal, Popconfirm, Table, Tag } from 'antd';
+import {
+  Button,
+  DatePicker,
+  Form,
+  message,
+  Modal,
+  Popconfirm,
+  Table,
+  Tag,
+} from 'antd';
 import './task.less';
 import { formatTime } from '../../plugin/index';
 import TextArea from 'antd/es/input/TextArea';
+import {
+  addTask,
+  completeTask,
+  getTaskList,
+  removeTask,
+} from '../../api/index';
 
 // const dayjs = require('dayjs');
 
@@ -46,14 +61,14 @@ class Task extends React.Component {
           <>
             <Popconfirm
               title='您确定要删除此任务吗？'
-              onConfirm={this.handleRemove.bind(null, id)}>
+              onConfirm={this.handleRemove.bind(this, id)}>
               <Button type='link'>删除</Button>
             </Popconfirm>
 
             {+state !== 2 ? (
               <Popconfirm
                 title='您确把此任务设置为完成吗？'
-                onConfirm={this.handleUpdate.bind(null, id)}>
+                onConfirm={this.handleUpdate.bind(this, id)}>
                 <Button type='link'>完成</Button>
               </Popconfirm>
             ) : null}
@@ -62,7 +77,6 @@ class Task extends React.Component {
       },
     },
   ];
-
   // 设置初始的一些状态
   state = {
     data: [],
@@ -73,11 +87,43 @@ class Task extends React.Component {
       task: null,
       time: null,
     },
+    selectIndex: 0, // 默认选中的tab
+    confirmLoading: false,
   };
 
-  handleRemove() {}
+  async componentDidMount() {
+    await this.fetTableData(0);
+  }
 
-  handleUpdate() {}
+  async handleRemove(id) {
+    try {
+      const { code } = await removeTask(id);
+      if (!code) {
+        message.success('删除成功');
+      } else {
+        message.success('删除失败');
+      }
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      await this.fetTableData(this.state.selectIndex);
+    }
+  }
+
+  async handleUpdate(id) {
+    try {
+      const { code } = await completeTask(id);
+      if (!code) {
+        message.success('处理成功');
+      } else {
+        message.success('处理失败');
+      }
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      await this.fetTableData(this.state.selectIndex);
+    }
+  }
 
   //   打开弹框
   add = () => {
@@ -95,13 +141,77 @@ class Task extends React.Component {
 
   // 点击弹框时候确定按钮的时候
   submit = () => {
+    this.formRef
+      .validateFields()
+      .then(async (res) => {
+        this.setState({
+          confirmLoading: true,
+        });
+        const time = res.time.format('YYYY-MM-DD HH:mm:ss');
+        const { code } = await addTask(res.task, time);
+        if (!code) {
+          message.success('新增成功');
+        } else {
+          message.success('新增失败');
+        }
+      })
+      .catch((err) => {})
+      .finally(() => {
+        this.setState(
+          {
+            confirmLoading: false,
+            isModalOpen: false,
+          },
+          async () => {
+            await this.fetTableData(this.state.selectIndex);
+          },
+        );
+      });
+  };
+
+  // 查询表格的数据
+  fetTableData = async (index = 0) => {
     this.setState({
-      isModalOpen: false,
+      tableLoading: true,
     });
+    try {
+      const { list } = await getTaskList(index);
+      this.setState({
+        data: list || [],
+      });
+    } catch (e) {
+      message.error('请求失败');
+    } finally {
+      this.setState({
+        tableLoading: false,
+      });
+    }
+  };
+
+  // 改变tag标识
+  changeSelectIndex = (index) => {
+    if (index === this.state.selectIndex) {
+      return;
+    }
+    this.setState(
+      {
+        selectIndex: index,
+      },
+      async () => {
+        await this.fetTableData(index);
+      },
+    );
   };
 
   render() {
-    let { title, data, isModalOpen, tableLoading } = this.state;
+    let {
+      confirmLoading,
+      title,
+      data,
+      isModalOpen,
+      tableLoading,
+      selectIndex,
+    } = this.state;
     return (
       <div className='wrapper'>
         <div className='header'>
@@ -113,11 +223,17 @@ class Task extends React.Component {
 
         <div className='table-wrapper'>
           <div className='tag-wrapper'>
-            <Tag className='tag-size' color={'#398EEA'}>
-              全部
-            </Tag>
-            <Tag className='tag-size'>未完成</Tag>
-            <Tag className='tag-size'>已完成</Tag>
+            {['全部', '未完成', '已完成'].map((el, index) => {
+              return (
+                <Tag
+                  key={index}
+                  onClick={this.changeSelectIndex.bind(this, index)}
+                  className='tag-size'
+                  color={selectIndex === index ? '#398EEA' : ''}>
+                  {el}
+                </Tag>
+              );
+            })}
           </div>
 
           <Table
@@ -132,8 +248,12 @@ class Task extends React.Component {
             title={title}
             open={isModalOpen}
             onOk={this.submit}
-            onCancel={this.closeModal}>
-            <Form layout='vertical' initialValues={{ task: '', time: '' }}>
+            onCancel={this.closeModal}
+            confirmLoading={confirmLoading}>
+            <Form
+              ref={(x) => (this.formRef = x)}
+              layout='vertical'
+              initialValues={{ task: '', time: '' }}>
               <Form.Item
                 label='任务描述'
                 name='task'
